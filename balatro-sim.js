@@ -266,6 +266,7 @@ class Hand {
     jokers = [],
     hands = false,
     TheFlint = false,
+    TheEye = false,
     PlasmaDeck = false,
     Observatory = false
   } = {}) {
@@ -286,6 +287,7 @@ class Hand {
       }
     }
     this.TheFlint = TheFlint;
+    this.TheEye = TheEye;
     this.PlasmaDeck = PlasmaDeck;
     this.Observatory = Observatory;
   }
@@ -467,12 +469,12 @@ class Hand {
         this.mult = bigTimes(1 + joker[VALUE] * 0.25, this.mult);
         break;
       case 83:
-        // Caino
+        // Canio
         this.mult = bigTimes(1 + joker[VALUE], this.mult);
         break;
       case 85:
         // Yorick
-        this.mult = bigTimes(1 + joker[VALUE], this.mult);
+        this.mult = bigTimes(joker[VALUE], this.mult);
         break;
       case 89:
         // Bootstraps
@@ -594,6 +596,7 @@ class Hand {
           this.chips += 50;
           break;
         case LUCKY:
+          let triggered = false;
           switch(this.randomMode) {
             case 0:
               this.mult = bigAdd(20, this.mult);
@@ -601,14 +604,27 @@ class Hand {
               luckyMoney++;
               luckyTriggers++;
               break;
-            case 2:
-              let triggered = false;
-              if(Math.random() * this.chanceMultiplier < 0.2) {
-                this.mult = bigAdd(5, this.mult);
+            case 1:
+              if(this.chanceMultiplier >= 5) {
+                this.mult = bigAdd(20, this.mult);
                 luckyMult++;
                 triggered = true;
               }
-              if(Math.random() * this.chanceMultiplier < 0.05) {
+              if(this.chanceMultiplier >= 20) {
+                luckyMoney++;
+                triggered = true;
+              }
+              if(triggered) {
+                luckyTriggers++;
+              }
+              break;
+            case 2:
+              if(Math.random() < 0.2 * this.chanceMultiplier) {
+                this.mult = bigAdd(20, this.mult);
+                luckyMult++;
+                triggered = true;
+              }
+              if(Math.random() < 1/15 * this.chanceMultiplier) {
                 luckyMoney++;
                 triggered = true;
               }
@@ -646,7 +662,6 @@ class Hand {
               this.mult = bigAdd(3, this.mult);
             }
             else if(card[SUIT] === true) {
-              card[SUIT] = DIAMONDS;
               this.mult = bigAdd(3, this.mult);
             }
             break;
@@ -656,7 +671,6 @@ class Hand {
               this.mult = bigAdd(3, this.mult);
             }
             else if(card[SUIT] === true) {
-              card[SUIT] = HEARTS;
               this.mult = bigAdd(3, this.mult);
             }
             break;
@@ -666,7 +680,6 @@ class Hand {
               this.mult = bigAdd(3, this.mult);
             }
             else if(card[SUIT] === true) {
-              card[SUIT] = SPADES;
               this.mult = bigAdd(3, this.mult);
             }
             break;
@@ -676,7 +689,6 @@ class Hand {
               this.mult = bigAdd(3, this.mult);
             }
             else if(card[SUIT] === true) {
-              card[SUIT] = CLUBS;
               this.mult = bigAdd(3, this.mult);
             }
             break;
@@ -701,7 +713,7 @@ class Hand {
           case 40:
             // Wee Joker
             if(card[RANK] === _2) {
-              this.jokersExtraValue[j]++;
+              this.chips += 8;
             }
             break;
           case 51:
@@ -730,21 +742,30 @@ class Hand {
                 case 0:
                   this.mult = bigTimes(1.5, this.mult);
                   break;
+                case 1:
+                  if(this.chanceMultiplier >= 2) {
+                    this.mult = bigTimes(1.5, this.mult);
+                  }
+                  break;
                 case 2:
-                  if(Math.random() * this.chanceMultiplier < 1/2) {
+                  if(Math.random() < 1/2 * this.chanceMultiplier) {
                     this.mult = bigTimes(1.5, this.mult);
                   }
                   break;
               }
             }
             else if(card[SUIT] === true) {
-              card[SUIT] = HEARTS;
               switch(this.randomMode) {
                 case 0:
                   this.mult = bigTimes(1.5, this.mult);
                   break;
+                case 1:
+                  if(this.chanceMultiplier >= 2) {
+                    this.mult = bigTimes(1.5, this.mult);
+                  }
+                  break;
                 case 2:
-                  if(Math.random() * this.chanceMultiplier < 1/2) {
+                  if(Math.random() < 1/2 * this.chanceMultiplier) {
                     this.mult = bigTimes(1.5, this.mult);
                   }
                   break;
@@ -757,7 +778,6 @@ class Hand {
               this.chips += 50;
             }
             else if(card[SUIT] === true) {
-              card[SUIT] = SPADES;
               this.chips += 50;
             }
             break;
@@ -767,7 +787,6 @@ class Hand {
               this.mult = bigAdd(7, this.mult);
             }
             else if(card[SUIT] === true) {
-              card[SUIT] = CLUBS;
               this.mult = bigAdd(7, this.mult);
             }
             break;
@@ -804,7 +823,7 @@ class Hand {
             break;
           case 157:
             // Ancient Joker
-            if(this.SmearedJoker ? card[SUIT] % 2 === Math.abs(joker[VALUE]) % 2 : card[SUIT] === Math.abs(joker[VALUE]) % 4) {
+            if(card[ENHANCEMENT] === WILD || (this.SmearedJoker ? card[SUIT] % 2 === Math.abs(joker[VALUE]) % 2 : card[SUIT] === Math.abs(joker[VALUE]) % 4)) {
               this.mult = bigTimes(1.5, this.mult);
             }
             break;
@@ -904,6 +923,8 @@ class Hand {
   }
 
   triggerCardInHand(card, retrigger = false) {
+    if(card[CARD_DISABLED]) return;
+
     // apply steel cards
     if(card[ENHANCEMENT] === STEEL && !card[CARD_DISABLED]) {
       this.compiledInHandPlusMult = bigTimes(1.5, this.compiledInHandPlusMult);
@@ -1305,8 +1326,13 @@ class Hand {
                   case 0:
                     amount++;
                     break;
+                  case 1:
+                    if(this.chanceMultiplier >= 4) {
+                      amount++;
+                    }
+                    break;
                   case 2:
-                    if(Math.random() * this.chanceMultiplier < 0.25) {
+                    if(Math.random() < 0.25 * this.chanceMultiplier) {
                       amount++;
                     }
                     break;
@@ -1322,30 +1348,19 @@ class Hand {
         case 40:
           // Wee Joker
           this.compiledChips += joker[VALUE] * 8;
-          for(let c = 0; c < this.involvedCards.length; c++) {
-            if(this.involvedCards[c][CARD_DISABLED]) continue;
-            const card = this.involvedCards[c];
-            if(card[ENHANCEMENT] !== STONE && card[RANK] === _2) {
-              this.compiledChips += 8;
-            }
-          }
           break;
         case 44:
           // Seeing Double
           let club = false;
           let nonClub = false;
+          let wildC = 0;
           for(let c = 0; c < this.involvedCards.length; c++) {
             if(this.involvedCards[c][CARD_DISABLED]) continue;
             if(this.involvedCards[c][ENHANCEMENT] !== STONE) {
               if(this.involvedCards[c][ENHANCEMENT] === WILD) {
-                if(club) {
-                  nonClub = true;
-                }
-                else {
-                  club = true;
-                }
+                wildC++;
               }
-              else if(this.involvedCards[c][RANK] === CLUBS) {
+              else if(this.involvedCards[c][SUIT] === CLUBS) {
                 club = true;
               }
               else {
@@ -1353,6 +1368,11 @@ class Hand {
               }
             }
           }
+          for(let i = 0; i < wildC; i++) {
+            if(!club) club = true;
+            else nonClub = true;
+          }
+
           if(club && nonClub) {
             this.compiledValues[j] = true;
           }
@@ -1365,7 +1385,7 @@ class Hand {
           let spades = 0;
           let wild = 0;
           for(let c = 0; c < this.involvedCards.length; c++) {
-            if(this.involvedCards[c][CARD_DISABLED] && this.involvedCards[c][ENHANCEMENT] === WILD) continue;  // seems to be a bug in balatro itself, remove when fixed?
+            if(this.involvedCards[c][CARD_DISABLED] && this.involvedCards[c][ENHANCEMENT] === WILD) continue;// seems to be a bug in balatro itself, remove when fixed?
             if(this.involvedCards[c][ENHANCEMENT] !== STONE) {
               if(this.involvedCards[c][ENHANCEMENT] === WILD && !this.involvedCards[c][CARD_DISABLED]) {
                 wild++;
@@ -1501,7 +1521,7 @@ class Hand {
           break;
         case 142:
           // Clever Joker
-          if(this.hasTwoPair) {
+          if(this.hasTwoPair && !this.hasFourOfAKind) {
             this.compiledChips += 80;
           }
           break;
@@ -1591,6 +1611,7 @@ class Hand {
             if(resolved) {
               this.jokers[j][JOKER] = this.jokers[at][JOKER];
               this.jokers[j][VALUE] = this.jokers[at][VALUE];
+              this.jokers[j][JOKER_DISABLED] = this.jokers[at][JOKER_DISABLED];
               this.cardCast[j] = at;
               j--;
               this.compiledValues.pop();
@@ -1631,6 +1652,7 @@ class Hand {
             if(resolved) {
               this.jokers[j][JOKER] = this.jokers[at][JOKER];
               this.jokers[j][VALUE] = this.jokers[at][VALUE];
+              this.jokers[j][JOKER_DISABLED] = this.jokers[at][JOKER_DISABLED];
               this.cardCast[j] = at;
               j--;
               this.compiledValues.pop();
@@ -1681,7 +1703,7 @@ class Hand {
           this.SmearedJoker = true;
           break;
         case 65:
-          this.chanceMultiplier /= 2;
+          this.chanceMultiplier *= 2;
           break;
         case 66:
           this.FourFingers = true;
@@ -1714,6 +1736,10 @@ class Hand {
     this.mult = [this.compiledMult[0], this.compiledMult[1]];
     this.jokersExtraValue = [];
 
+    if(this.TheEye && this.hands[this.typeOfHand][PLAYED_THIS_ROUND]) {
+      return [1, -10, 0, [0,0]];
+    }
+
     for(let j = 0; j < this.jokers.length; j++) {
       this.jokersExtraValue.push(0);
     }
@@ -1725,6 +1751,18 @@ class Hand {
 
       if(card[ENHANCEMENT] === STONE || this.involvedCards.indexOf(card) >= 0) {
         this.triggerCard(card);
+      }
+      else {
+        for(let j = 0; j < this.jokers.length; j++) {
+          const joker = this.jokers[j];
+          if(joker[JOKER_DISABLED]) continue;
+          switch(joker[JOKER]) {
+            // Hanging Chad
+            case 69:
+              this.jokersExtraValue[j]++;
+            break;
+          }
+        }
       }
     }
 
@@ -1751,11 +1789,12 @@ class Hand {
 
     if(this.PlasmaDeck) {
       this.mult = bigAdd(this.chips, this.mult);
-      this.mult[0] /= 2;
+      this.mult = bigTimes(0.5, this.mult);
+
       if(this.mult[1] === 0) {
         this.mult[0] = Math.floor(this.mult[0]);
       }
-      return [...normalizeBig(bigBigTimes(this.mult, this.mult)), this.mult[0] * (10 ** this.mult[1]), normalizeBig(this.mult)];
+      return [...normalizeBig(bigBigTimes(this.mult, this.mult)), normalizeBig(this.mult), normalizeBig(this.mult)];
     }
 
     return [...normalizeBig(bigTimes(this.chips, this.mult)), this.chips, normalizeBig(this.mult)];

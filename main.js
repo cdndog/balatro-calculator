@@ -25,9 +25,12 @@ let revertToTab = 0;
 let modifyingJoker = false;
 let modifyingJokerValue = 0;
 
+let modifyingJokerValTxt = document.getElementById('modValue');
+let modifyingJokerValueDiv = document.getElementById('modifyJokerValue');
 let modifyingJokerValDiv = document.getElementById('modifyJokerVal');
 let modifyingJokerSellValDiv = document.getElementById('modifyJokerSellVal');
 let modifyJokerDiv = document.getElementById('modifyJoker');
+let highContrastDiv = document.getElementById('highContrastBtn');
 
 function changeTab(tab) {
   return () => {
@@ -178,7 +181,7 @@ const handColors = [
   '#caa0ef'
 ];
 
-const handLevels = document.getElementById('Hands');
+const handLevels = document.getElementById('hands');
 const consumables = document.getElementById('consumables');
 
 function incrementLevel(inc, handIndex) {
@@ -301,6 +304,12 @@ function addLvlText(handIndex) {
 const jokerValueHTML = document.getElementById('jokerVal');
 let jokerValue = 0;
 
+const jokerCountHTML = document.getElementById('jokerCnt');
+let jokerCount = 1;
+
+const cardCountHTML = document.getElementById('cardCnt');
+let cardCount = 1;
+
 function incrementJokerValue(inc) {
   jokerValue += inc;
   if(inc === 0) {
@@ -324,9 +333,70 @@ function setJokerValue() {
     jokerValue = 0;
   }
 
-  if(willBlur) jokerValueHTML.blur();
+  if(willBlur) {
+    jokerValueHTML.blur();
+    jokerValueHTML.innerText = jokerValue;
+  }
 
   jredrawCards();
+}
+
+function incrementJokerCount(inc) {
+  jokerCount += inc;
+  if(inc === 0) {
+    jokerCount = 1;
+  }
+  jokerCountHTML.innerText = Math.max(1, jokerCount);
+}
+
+function setJokerCount() {
+  console.log(jokerCountHTML.innerText);
+  let willBlur = false;
+
+  if(jokerCountHTML.innerText.indexOf('\n') >= 0) {
+    jokerCountHTML.innerText = jokerCountHTML.innerText.replace(/[\r\n]/g, '');
+    willBlur = true;
+  }
+  if(!isNaN(jokerCountHTML.innerText)) {
+    jokerCount = Math.max(1, Math.round(jokerCountHTML.innerText * 1));
+  }
+  else {
+    jokerCount = 1;
+  }
+
+  if(willBlur) {
+    jokerCountHTML.blur();
+    jokerCountHTML.innerText = jokerCount;
+  }
+}
+
+function incrementCardCount(inc) {
+  cardCount += inc;
+  if(inc === 0) {
+    cardCount = 1;
+  }
+  cardCountHTML.innerText = Math.max(1, cardCount);
+}
+
+function setCardCount() {
+  console.log(cardCountHTML.innerText);
+  let willBlur = false;
+
+  if(cardCountHTML.innerText.indexOf('\n') >= 0) {
+    cardCountHTML.innerText = cardCountHTML.innerText.replace(/[\r\n]/g, '');
+    willBlur = true;
+  }
+  if(!isNaN(cardCountHTML.innerText)) {
+    cardCount = Math.max(1, Math.round(cardCountHTML.innerText * 1));
+  }
+  else {
+    cardCount = 1;
+  }
+
+  if(willBlur) {
+    cardCountHTML.blur();
+    cardCountHTML.innerText = cardCount;
+  }
 }
 
 handLevels.innerHTML = '';
@@ -477,14 +547,19 @@ function toggleCardModifier(name) {
 const cardsDiv = document.getElementById('cards');
 const jcardsDiv = document.getElementById('jokers');
 
-function cardString(i, j) {
+let highContrast = window.localStorage.hc === '1';
+if(highContrast) {
+  highContrastDiv.innerText = 'X';
+}
+
+function cardString(i, j, hc = 0) {
   if(modifiers.stone) {
     return `${modifierClass}" style="background: ` +
     `${modifierPostString}${modifierString.slice(2)}"`;
   }
   else {
     return `${modifierClass}" style="background: ` +
-    `${modifierPostString}url(assets/8BitDeck.png) ` +
+    `${modifierPostString}url(assets/8BitDeck${(hc === 2 || (hc === 0 && highContrast))?'_opt2':''}.png) ` +
     `-${71*j}px -${95*i}px${modifierString}"`;
   }
 }
@@ -494,12 +569,28 @@ function redrawCards() {
   for(let i = 0; i < 4; i++) {
     txt += '<div>';
     for(let j = 0; j < 13; j++) {
-      txt += `<div class="tooltip"><div class="playingCard${cardString(i, j)} onclick="addCard(${i}, ${j})" onmousemove = 'hoverCard(event)' onmouseout = 'noHoverCard(event)'></div></div>`;
+      txt += `<div class="tooltip"><div class="playingCard${cardString((i+3) % 4, j)} onclick="addCard(${i}, ${j})" onmousemove = 'hoverCard(event)' onmouseout = 'noHoverCard(event)'></div></div>`;
     }
     txt += '</div>';
   }
   cardsDiv.innerHTML = txt;
 }
+
+function toggleContrast() {
+    highContrast = !highContrast;
+    window.localStorage.setItem('hc', highContrast?1:0);
+    if(highContrast) {
+      highContrastDiv.innerText = 'X';
+    }
+    else {
+      highContrastDiv.innerHTML = '&nbsp;';
+    }
+
+    redrawCards();
+    redrawPlayfieldHTML();
+}
+
+document.getElementById('highContrastBtn').addEventListener('click', toggleContrast);
 
 function jokerString(i, j, modifiers) {
   let jmodifierClass = '';
@@ -570,24 +661,34 @@ const cardsInHandDiv = document.getElementById('cardsInHand');
 const jokerLimitDiv = document.getElementById('jokerLimit');
 const handLimitDiv = document.getElementById('handLimit');
 
-let playfieldJokers = {};
 let playfieldCards = {};
 
-function addJoker(i, j, sell = false) {
-  let id = 'j'+(Math.random()+'').slice(2);
-  while(playfieldJokers.hasOwnProperty(id)) {
-    id = 'j'+(Math.random()+'').slice(2);
+function updateTooltips() {
+  for(let joker in playfieldJokers) {
+    let i = playfieldJokers[joker].type[0];
+    let j = playfieldJokers[joker].type[1];
+    let jokerValue = playfieldJokers[joker].value;
+    playfieldJokers[joker].tooltip = (jokerTexts.length > i && jokerTexts[i].length > j) ? [jokerTexts[i][j][0], eval('`' + jokerTexts[i][j][1] + '`')] : ['WIP', 'WIP'];
   }
+}
 
-  playfieldJokers[id] = {
-    id,
-    type: [i, j],
-    modifiers: {...jmodifiers},
-    value: jokerValue,
-    sell: sell !== false ? sell : Math.floor((jokerPrice[i][j] + ((jmodifiers.foil || jmodifiers.holographic || jmodifiers.polychrome) ? 1 : 0)) / 2),
-    string: jokerString(i, j, jmodifiers),
-    tooltip: (jokerTexts.length > i && jokerTexts[i].length > j) ? [jokerTexts[i][j][0], eval('`' + jokerTexts[i][j][1] + '`')] : ['WIP', 'WIP']
-  };
+function addJoker(i, j, sell = false) {
+  for(let k = 0; k < jokerCount; k++) {
+    let id = 'j'+(Math.random()+'').slice(2);
+    while(playfieldJokers.hasOwnProperty(id)) {
+      id = 'j'+(Math.random()+'').slice(2);
+    }
+
+    playfieldJokers[id] = {
+      id,
+      type: [i, j],
+      modifiers: {...jmodifiers},
+      value: jokerValue,
+      sell: sell !== false ? sell : Math.floor((jokerPrice[i][j] + ((jmodifiers.foil || jmodifiers.holographic || jmodifiers.polychrome) ? 1 : 0)) / 2),
+      string: jokerString(i, j, jmodifiers),
+      tooltip: (jokerTexts.length > i && jokerTexts[i].length > j) ? [jokerTexts[i][j][0], eval('`' + jokerTexts[i][j][1] + '`')] : ['WIP', 'WIP']
+    };
+  }
 
   jokerLimitDiv.innerText = Object.keys(playfieldJokers).length;
 
@@ -595,6 +696,7 @@ function addJoker(i, j, sell = false) {
     toggleJoker();
   }
 
+  updateTooltips();
   redrawPlayfield();
 }
 
@@ -603,23 +705,27 @@ function removeJoker(id) {
 
   jokerLimitDiv.innerText = Object.keys(playfieldJokers).length;
 
+  updateTooltips();
   redrawPlayfield();
 
   changeTab(revertToTab)();
 }
 
 function addCard(i, j) {
-  let id = ((j === 10 && !modifiers.stone) ? (!modifiers.steel ? '993' : '992') : '') + (''+j).padStart(2, 0)+(4-i)+Object.keys(modifiers).map(a=>modifiers[a]?'1':'0').join('');
-  while(playfieldCards.hasOwnProperty(id)) {
-    id += '#';
-  }
+  for(let k = 0; k < cardCount; k++) {
+    let id = ((j === 10 && !modifiers.stone) ? (!modifiers.steel ? '993' : '992') : '') + (''+j).padStart(2, 0)+(4-i)+Object.keys(modifiers).map(a=>modifiers[a]?'1':'0').join('');
+    while(playfieldCards.hasOwnProperty(id)) {
+      id += '#';
+    }
 
-  playfieldCards[id] = {
-    id,
-    type: [i, j],
-    modifiers: {...modifiers},
-    string: cardString(i, j)
-  };
+    playfieldCards[id] = {
+      id,
+      type: [(i + 3) % 4, j],
+      modifiers: {...modifiers},
+      string: cardString((i + 3) % 4, j, 1),
+      HCString: cardString((i + 3) % 4, j, 2),
+    };
+  }
 
   handLimitDiv.innerText = Object.keys(playfieldCards).length;
 
@@ -651,7 +757,8 @@ function redrawPlayfieldHTML() {
 
   let txt = '';
   for(let id of bestJokers) {
-    txt += `<div class='tooltip'><div id="${id}" class="jokerCard${playfieldJokers[id].string} onclick="modifyJoker('${id}')" onmousemove = 'hoverCard(event)' onmouseout = 'noHoverCard(event)'></div>` +
+    txt += `<div class='tooltip'><div id="${id}" class="jokerCard${playfieldJokers[id].string} ` +
+    `onclick="modifyJoker('${id}')" onmousemove = 'hoverCard(event)' onmouseout = 'noHoverCard(event)'></div>` +
     `<div class="removeJoker" onclick="removeJoker('${id}')">X</div>` +
     `<span class='tooltiptext'>` +
     `<span class='title'>${playfieldJokers[id].tooltip[0]}</span>` +
@@ -669,7 +776,9 @@ function redrawPlayfieldHTML() {
 
   txt = '';
   for(let id of bestHand) {
-    txt += `<div class="tooltip"><div id="p${id}" class="playfieldCard${playfieldCards[id].string} onclick="removeCard('${id}')" onmousemove = 'hoverCard(event)' onmouseout = 'noHoverCard(event)'></div>` +
+    txt += `<div class="tooltip"><div id="p${id}" ` +
+    `class="playfieldCard${highContrast ? playfieldCards[id].HCString : playfieldCards[id].string} ` +
+    `onclick="removeCard('${id}')" onmousemove = 'hoverCard(event)' onmouseout = 'noHoverCard(event)'></div>` +
     `<div style="position: absolute; top: 100%; width: 100%;">` +
     `<div class="positionButtons">` +
     `<div class="lvlBtn" onclick="moveHandCardLeft('${id}')">&lt;</div>` +
@@ -687,7 +796,7 @@ function redrawPlayfieldHTML() {
   for(let id of Object.keys(playfieldCards).sort().reverse()) {
     if(bestHand.indexOf(id) >= 0) continue;
     if(id.indexOf('99') !== 0) continue;
-    txt += `<div class="tooltip"><div id="${id}" class="playfieldCard${playfieldCards[id].string} onclick="removeCard('${id}')" onmousemove = 'hoverCard(event)' onmouseout = 'noHoverCard(event)'></div>` +
+    txt += `<div class="tooltip"><div id="${id}" class="playfieldCard${highContrast ? playfieldCards[id].HCString : playfieldCards[id].string} onclick="removeCard('${id}')" onmousemove = 'hoverCard(event)' onmouseout = 'noHoverCard(event)'></div>` +
     `<div style="position: absolute; top: 100%; width: 100%;">` +
     `<div class="positionButtons">` +
     `<div class="lvlBtn" onclick="moveCardUp('${id}')">^</div>` +
@@ -743,7 +852,7 @@ function redrawPlayfieldHTML() {
         if(lowestCards.indexOf(id) < 0) continue;
         if(id === ignoreCard) continue;
         if(id.indexOf('99') === 0) continue;
-        txt += `<div class="tooltip"><div id="${id}" class="playfieldCard${playfieldCards[id].string} onclick="removeCard('${id}')" onmousemove = 'hoverCard(event)' onmouseout = 'noHoverCard(event)'></div>` +
+        txt += `<div class="tooltip"><div id="${id}" class="playfieldCard${highContrast ? playfieldCards[id].HCString : playfieldCards[id].string} onclick="removeCard('${id}')" onmousemove = 'hoverCard(event)' onmouseout = 'noHoverCard(event)'></div>` +
         `<div style="position: absolute; top: 100%; width: 100%;">` +
         `<div class="positionButtons">` +
         `<div class="lvlBtn" onclick="moveCardUp('${id}')">^</div>` +
@@ -751,7 +860,7 @@ function redrawPlayfieldHTML() {
         `</div>`;
       }
 
-      txt += `<div class="tooltip"><div id="${ignoreCard}" class="playfieldCard${playfieldCards[ignoreCard].string} onclick="removeCard('${ignoreCard}')" onmousemove = 'hoverCard(event)' onmouseout = 'noHoverCard(event)'></div>` +
+      txt += `<div class="tooltip"><div id="${ignoreCard}" class="playfieldCard${highContrast ? playfieldCards[ignoreCard].HCString : playfieldCards[ignoreCard].string} onclick="removeCard('${ignoreCard}')" onmousemove = 'hoverCard(event)' onmouseout = 'noHoverCard(event)'></div>` +
       `<div style="position: absolute; top: 100%; width: 100%;">` +
       `<div class="positionButtons">` +
       `<div class="lvlBtn" onclick="moveCardUp('${ignoreCard}')">^</div>` +
@@ -765,7 +874,7 @@ function redrawPlayfieldHTML() {
     if(bestHand.indexOf(id) >= 0) continue;
     if(lowestCards.indexOf(id) >= 0) continue;
     if(id.indexOf('99') === 0) continue;
-    txt += `<div class="tooltip"><div id="${id}" class="playfieldCard${playfieldCards[id].string} onclick="removeCard('${id}')" onmousemove = 'hoverCard(event)' onmouseout = 'noHoverCard(event)'></div>` +
+    txt += `<div class="tooltip"><div id="${id}" class="playfieldCard${highContrast ? playfieldCards[id].HCString : playfieldCards[id].string} onclick="removeCard('${id}')" onmousemove = 'hoverCard(event)' onmouseout = 'noHoverCard(event)'></div>` +
     `<div style="position: absolute; top: 100%; width: 100%;">` +
     `<div class="positionButtons">` +
     `<div class="lvlBtn" onclick="moveCardUp('${id}')">^</div>` +
@@ -859,6 +968,15 @@ function modifyJoker(id) {
   modifyingJokerValDiv.innerText = playfieldJokers[modifyingJoker].value;
   modifyingJokerSellValDiv.innerText = playfieldJokers[modifyingJoker].sell;
 
+  const type = playfieldJokers[modifyingJoker].type;
+  if(jokerTexts[type[0]][type[1]][2]) {
+    modifyingJokerValueDiv.style.display = 'inline-block';
+    modifyingJokerValTxt.innerText = jokerTexts[type[0]][type[1]][2];
+  }
+  else {
+    modifyingJokerValueDiv.style.display = 'none';
+  }
+
   updateModifyingJoker();
 }
 
@@ -886,6 +1004,8 @@ function mjtoggleCardModifier(name) {
   joker.modifiers[name] = !joker.modifiers[name];
   joker.string = jokerString(joker.type[0], joker.type[1], joker.modifiers);
 
+
+  updateTooltips();
   redrawPlayfield();
   updateModifyingJoker();
 }
@@ -987,7 +1107,7 @@ function playHand() {
       case '24':
         // Loyalty Card
         if(joker.value === 0) {
-          joker.value = 6;
+          joker.value = 5;
         }
         else {
           joker.value--;
@@ -1055,6 +1175,15 @@ function playHand() {
         // Popcorn
         joker.value++;
         if(joker.value >= 5) {
+          joker.modifiers.foil = false;
+          joker.modifiers.holographic = false;
+          joker.modifiers.polychrome = false;
+          joker.modifiers.disabled = true;
+        }
+        break;
+      case '153':
+        joker.value++;
+        if(joker.value >= 10) {
           joker.modifiers.foil = false;
           joker.modifiers.holographic = false;
           joker.modifiers.polychrome = false;

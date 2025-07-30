@@ -21,10 +21,12 @@ const toggleJokerDiv = document.getElementById('toggleJokerBtn');
 const toggleCardDiv = document.getElementById('toggleCardBtn');
 const minimizeDiv = document.getElementById('toggleMinimizeBtn');
 const toggleTheFlintDiv = document.getElementById('toggleTheFintBtn');
+const toggleTheEyeDiv = document.getElementById('toggleTheEyeBtn');
 const togglePlasmaDiv = document.getElementById('togglePlasmaBtn');
 const toggleObservatoryDiv = document.getElementById('toggleObservatoryBtn');
 
 let theFlint = false;
+let theEye = false;
 let plasmaDeck = false;
 let observatory = false;
 
@@ -101,6 +103,18 @@ function toggleTheFlint() {
   }
 }
 
+function toggleTheEye() {
+  theEye = !theEye;
+  redrawPlayfield();
+
+  if(theEye) {
+    toggleTheEyeDiv.innerText = 'X';
+  }
+  else {
+    toggleTheEyeDiv.innerHTML = '&nbsp;';
+  }
+}
+
 function toggleObservatory() {
   observatory = !observatory;
   redrawPlayfield();
@@ -126,6 +140,21 @@ function togglePlayed(index) {
   else {
     handLevels.children[index].children[0].innerHTML = '&nbsp;';
   }
+}
+
+function invertPlayedHands(index) {
+  for(let index = 0; index < hands.length; index++) {
+    hands[index].playedThisRound = hands[index].playedThisRound ? 0 : 1;
+
+    if(hands[index].playedThisRound) {
+      handLevels.children[index].children[0].innerText = 'X';
+    }
+    else {
+      handLevels.children[index].children[0].innerHTML = '&nbsp;';
+    }
+  }
+
+  redrawPlayfield();
 }
 
 function permutations(inputArr) {
@@ -198,6 +227,7 @@ function terminateThreads() {
       ];
     }),
     TheFlint: theFlint,
+    TheEye: theEye,
     PlasmaDeck: plasmaDeck,
     Observatory: observatory,
     taskID,
@@ -220,6 +250,7 @@ function terminateThreads() {
   };
 
   breakdownHand.TheFlint = theFlint;
+  breakdownHand.TheEye = theEye;
   breakdownHand.PlasmaDeck = plasmaDeck;
   breakdownHand.Observatory = observatory;
   breakdownHand.hands = state.hands;
@@ -488,6 +519,7 @@ function calculator() {
 }
 
 function numberWithCommas(x) {
+  if(typeof x === 'object') return bigNumberWithCommas(x);
   if(x < 1e11) {
     if((Math.floor(x * 10000) / 10000) % 1 !== 0) {
       return Math.floor(x).toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",") + '.' + (Math.floor(Math.round((x % 1) * 10000) / 10)+'').padStart(3, 0).replace(/0+$/, '');
@@ -498,7 +530,7 @@ function numberWithCommas(x) {
 }
 
 function bigNumberWithCommas(num, whole = false) {
-  if(num[1] > 11) {
+  if(num && num[1] > 11) {
     return `${Math.floor(num[0] * 10000) / 10000}e${num[1]}`;
   }
 
