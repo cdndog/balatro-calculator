@@ -126,6 +126,8 @@ function run(jokers = [[]]) {
     bestCardsInHand = thisHand.cardsInHand;
   }
 
+  let originalHand = thisHand.cardsInHand.slice();
+
   for(let j = 0; j < jokers.length; j++) {
     thisHand.jokers = jokers[j].map(a => a.slice());
     thisHand.compileJokerOrder();
@@ -155,6 +157,7 @@ function run(jokers = [[]]) {
             thisHand.cards.push(thisCards[thisPerms[l][m]]);
           }
           thisHand.cardsInHand = thisCardsInHand.slice();
+          const thisOriginalHand = thisCardsInHand.slice();
 
           let thisScore;
 
@@ -174,6 +177,7 @@ function run(jokers = [[]]) {
                   bestCards = thisHand.cards;
                   bestJokers = jokers[j];
                   bestCardsInHand = thisHand.cardsInHand;
+                  originalHand = thisOriginalHand;
                 }
                 if(thisScore[1] < bestScore[1] || (thisScore[1] === bestScore[1] && thisScore[0] < bestScore[0]) || (bestCards.length === 0 && thisHand.cards.length > 0) || (thisScore[1] === bestScore[1] && thisScore[0] === bestScore[0] && sameScore > bestSameScore)) {
                   bestScore = thisScore;
@@ -182,6 +186,7 @@ function run(jokers = [[]]) {
                   bestCards = thisHand.cards;
                   bestJokers = jokers[j];
                   bestCardsInHand = thisHand.cardsInHand;
+                  originalHand = thisOriginalHand;
                 }
                 else if(thisScore[1] === bestScore[1] && thisScore[0] === bestScore[0] && sameScore === bestSameScore) {
                   const bhs = thisHand.simulateBestHand();
@@ -193,6 +198,7 @@ function run(jokers = [[]]) {
                     bestCards = thisHand.cards;
                     bestJokers = jokers[j];
                     bestCardsInHand = thisHand.cardsInHand;
+                    originalHand = thisOriginalHand;
                   }
                 }
 
@@ -207,6 +213,7 @@ function run(jokers = [[]]) {
                   bestCards = thisHand.cards;
                   bestJokers = jokers[j];
                   bestCardsInHand = thisHand.cardsInHand;
+                  originalHand = thisOriginalHand;
                 }
                 if(thisScore[1] > bestScore[1] || (thisScore[1] === bestScore[1] && thisScore[0] > bestScore[0]) || (bestCards.length === 0 && thisHand.cards.length > 0) || (thisScore[1] === bestScore[1] && thisScore[0] === bestScore[0] && sameScore > bestSameScore)) {
                   bestScore = thisScore;
@@ -215,6 +222,7 @@ function run(jokers = [[]]) {
                   bestCards = thisHand.cards;
                   bestJokers = jokers[j];
                   bestCardsInHand = thisHand.cardsInHand;
+                  originalHand = thisOriginalHand;
                 }
                 else if(thisScore[1] === bestScore[1] && thisScore[0] === bestScore[0] && sameScore === bestSameScore) {
                   const bhs = thisHand.simulateBestHand();
@@ -226,6 +234,7 @@ function run(jokers = [[]]) {
                     bestCards = thisHand.cards;
                     bestJokers = jokers[j];
                     bestCardsInHand = thisHand.cardsInHand;
+                    originalHand = thisOriginalHand;
                   }
                 }
               }
@@ -292,7 +301,9 @@ function run(jokers = [[]]) {
 
   thisHand.jokers = bestJokers.map(a => a.slice());
   thisHand.cards = bestCards.slice();
-  thisHand.cardsInHand = bestCardsInHand.slice();
+  console.log(originalHand);
+  thisHand.cardsInHand = originalHand.slice();
+
 
   thisHand.compileAll();
 
@@ -326,8 +337,8 @@ function run(jokers = [[]]) {
 
     medianScore = runScores[5000];
   }
-
-  postMessage([taskID, bestScore, bestJokers, bestCards, bestCardsInHand, highestScore, lowestScore, thisHand.typeOfHand, normalizeBig(meanScore), normalizeBig(medianScore), workerID, thisHand.compiledValues]);
+  
+  postMessage([taskID, bestScore, bestJokers, bestCards, originalHand, highestScore, lowestScore, thisHand.typeOfHand, normalizeBig(meanScore), normalizeBig(medianScore), workerID, thisHand.compiledValues]);
 }
 
 self.onmessage = async function(msg) {
