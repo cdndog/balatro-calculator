@@ -259,6 +259,9 @@ class Hand {
   cardCast = [];
   actualJokers = [];
 
+  firstHand = true;
+  earnedMoney = 0;
+
   constructor({
     cards = [],
     cardsInHand = [],
@@ -275,6 +278,14 @@ class Hand {
     this.jokers = jokers;
     if(hands) {
       this.hands = hands;
+
+      this.firstHand = true;
+      for(let i = 0; i < this.hands.length; i++) {
+        if(this.hands[i][PLAYED_THIS_ROUND]) {
+          this.firstHand = false;
+          break;
+        }
+      }
     }
     else {
       for(let i = 0; i < handChips.length; i++) {
@@ -285,6 +296,7 @@ class Hand {
           0, // played this round
         ]);
       }
+      this.firstHand = true;
     }
     this.TheFlint = TheFlint;
     this.TheEye = TheEye;
@@ -565,8 +577,8 @@ class Hand {
         break;
       case 89:
         // Bootstraps
-        this.mult = bigAdd(joker[VALUE] * 2, this.mult);
-        if(this.bd) this.breakdownPlusMult([joker], joker[VALUE] * 2);
+        this.mult = bigAdd((joker[VALUE] + Math.floor(this.earnedMoney / 5)) * 2, this.mult);
+        if(this.bd) this.breakdownPlusMult([joker], (joker[VALUE] + Math.floor(this.earnedMoney / 5)) * 2);
         break;
       case 102:
         // Blackboard
@@ -701,8 +713,8 @@ class Hand {
         break;
       case 147:
         // Bull
-        this.chips += 2 * joker[VALUE] + this.jokersExtraValue[j];
-        if(this.bd) this.breakdownPlusChips([joker], 2 * joker[VALUE] + this.jokersExtraValue[j]);
+        this.chips += 2 * (joker[VALUE] + this.earnedMoney);
+        if(this.bd) this.breakdownPlusChips([joker], 2 * (joker[VALUE] + this.earnedMoney));
         break;
       case 150:
         // Flash Card
@@ -838,6 +850,9 @@ class Hand {
 
     const isFace = this.Pareidolia || (notStone && card[RANK] >= JACK && card[RANK] <= KING);
 
+
+    this.earnedMoney += luckyMoney * 20;
+
     if(notStone) {
       for(let j = 0; j < this.jokers.length; j++) {
         const joker = this.jokers[j];
@@ -894,6 +909,20 @@ class Hand {
               if(this.bd) this.breakdownPlusChips([card, joker], 30);
             }
             break;
+          case 35:
+            // Golden Ticket
+            if(card[ENHANCEMENT] === GOLD || (this.MidasMaskas && isFace)) {
+              this.earnedMoney += 4;
+              if(this.bd) {
+                this.breakdown.push({
+                  cards: [card, joker],
+                  description: `gain ${moneyc}$4${endc}`,
+                  chips: this.chips,
+                  mult: this.mult
+                });
+              }
+            }
+            break;
           case 38:
             // Even Steven
             if(card[RANK] % 2 === 0 && card[RANK] <= _10) {
@@ -913,6 +942,34 @@ class Hand {
             if(card[RANK] === _2) {
               this.chips += 8;
               if(this.bd) this.breakdownPlusChips([card, joker], 8);
+            }
+            break;
+          case 41:
+            // Business Card
+            if(isFace) {
+              switch(this.randomMode) {
+                case 0:
+                  this.earnedMoney += 2;
+                  break;
+                case 1:
+                  if(this.chanceMultiplier >= 2) {
+                    this.earnedMoney += 2;
+                  }
+                  break;
+                case 2:
+                  if(Math.random() < 0.5 * this.chanceMultiplier) {
+                    this.earnedMoney += 2;
+                  }
+                  break;
+              }
+              if(this.bd) {
+                this.breakdown.push({
+                  cards: [card, joker],
+                  description: `${probc}${this.chanceMultiplier >= 2 ? '' : 1 * this.chanceMultiplier + ' in 2 '}${endc}gain ${moneyc}$2${endc}`,
+                  chips: this.chips,
+                  mult: this.mult
+                });
+              }
             }
             break;
           case 51:
@@ -1050,10 +1107,6 @@ class Hand {
             // Lucky Cat
             this.jokersExtraValue[j] += luckyTriggers;
             break;
-          case 147:
-            // Bull
-            this.jokersExtraValue[j] += luckyMoney * 40;
-            break;
           case 156:
             // Smiley Face
             if(isFace) {
@@ -1089,6 +1142,46 @@ class Hand {
             // Scary Face
             this.chips += 30;
             if(this.bd) this.breakdownPlusChips([card, joker], 30);
+            break;
+          case 35:
+            // Golden Ticket
+            if(this.MidasMaskas) {
+              this.earnedMoney += 4;
+              if(this.bd) {
+                this.breakdown.push({
+                  cards: [card, joker],
+                  description: `gain ${moneyc}$4${endc}`,
+                  chips: this.chips,
+                  mult: this.mult
+                });
+              }
+            }
+            break;
+          case 41:
+            // Business Card
+            switch(this.randomMode) {
+              case 0:
+                this.earnedMoney += 2;
+                break;
+              case 1:
+                if(this.chanceMultiplier >= 2) {
+                  this.earnedMoney += 2;
+                }
+                break;
+              case 2:
+                if(Math.random() < 0.5 * this.chanceMultiplier) {
+                  this.earnedMoney += 2;
+                }
+                break;
+            }
+            if(this.bd) {
+              this.breakdown.push({
+                cards: [card, joker],
+                description: `${probc}${this.chanceMultiplier >= 2 ? '' : 1 * this.chanceMultiplier + ' in 2 '}${endc}gain ${moneyc}$2${endc}`,
+                chips: this.chips,
+                mult: this.mult
+              });
+            }
             break;
           case 110:
             // Hiker
@@ -1642,7 +1735,7 @@ class Hand {
           cards: this.involvedCards,
           description: hands[this.typeOfHand].name,
           chips: this.compiledChips,
-          mult: this.compiledMult,
+          mult: this.compiledMult.slice(),
           newCard: true
         });
       }
@@ -1656,7 +1749,7 @@ class Hand {
             cards: this.involvedCards,
             description: 'The Fint',
             chips: this.compiledChips,
-            mult: this.compiledMult
+            mult: this.compiledMult.slice()
           });
         }
       }
@@ -1688,7 +1781,7 @@ class Hand {
               cards: [joker],
               description: `${chipc}+${(joker[VALUE] - extra) * 25}${endc} Chips`,
               chips: this.compiledChips,
-              mult: this.compiledMult
+              mult: this.compiledMult.slice()
             });
           }
           break;
@@ -1731,13 +1824,18 @@ class Hand {
           break;
         case 31:
           // Glass Joker
-          if(this.hasVampire) {
+          if(!this.hasVampire) {
             let amount = joker[VALUE];
             for(let c = 0; c < this.cards.length; c++) {
               if(this.cards[c][ENHANCEMENT] === GLASS) {
                 switch(this.randomMode) {
                   case 0:
                     amount++;
+                    break;
+                  case 1:
+                    if(this.chanceMultiplier >= 4) {
+                      amount++;
+                    }
                     break;
                   case 2:
                     if(Math.random() < 0.25 * this.chanceMultiplier) {
@@ -1747,7 +1845,7 @@ class Hand {
                 }
               }
             }
-            this.compiledValues[j] = 1 + (joker[VALUE] - amount) * 0.75;
+            this.compiledValues[j] = 1 + (joker[VALUE] + amount) * 0.75;
           }
           else {
             this.compiledValues[j] = 1 + joker[VALUE] * 0.75;
@@ -1761,7 +1859,7 @@ class Hand {
               cards: [joker],
               description: `${chipc}+${joker[VALUE] * 8}${endc} Chips`,
               chips: this.compiledChips,
-              mult: this.compiledMult
+              mult: this.compiledMult.slice()
             });
           }
           break;
@@ -1876,7 +1974,7 @@ class Hand {
           break;
         case 105:
           // DNA
-          if(this.cards.length === 1) {
+          if(this.cards.length === 1 && this.firstHand) {
             this.cardsInHand.push(this.cards[0]);
           }
           break;
@@ -2044,6 +2142,14 @@ class Hand {
   compileJokers() {
     // set standard values; probability modifier (Oops! All 6s), vampire, etc.
 
+    this.firstHand = true;
+    for(let i = 0; i < this.hands.length; i++) {
+      if(this.hands[i][PLAYED_THIS_ROUND]) {
+        this.firstHand = false;
+        break;
+      }
+    }
+
     // set global variables' default values
     this.actualCardsInHand = [];
     this.actualCards = [];
@@ -2108,6 +2214,7 @@ class Hand {
     this.chips = this.compiledChips;
     this.mult = [this.compiledMult[0], this.compiledMult[1]];
     this.jokersExtraValue = [];
+    this.earnedMoney = 0;
 
     if(this.TheEye && this.hands[this.typeOfHand][PLAYED_THIS_ROUND]) {
       return [...normalizeBig(bigTimes(0, 1)), 0, normalizeBig(1)];
